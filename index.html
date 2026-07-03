@@ -320,39 +320,38 @@
         if(!modoCloud && localStorage.getItem('menu_grid_l')) menuEstructura = JSON.parse(localStorage.getItem('menu_grid_l'));
         renderizarMallaPrincipal(); renderizarPantallaCuenta();
         evaluarRolPorURL(); // Ejecutar control al cargar
-          <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyChEwjd5RKcPvYbz3P6tz0jp0v0J2DRgzo",
-      authDomain: "comandero-digital-b2511.firebaseapp.com",
-      databaseURL: "https://comandero-digital-b2511-default-rtdb.firebaseio.com",
-      projectId: "comandero-digital-b2511",
-      storageBucket: "comandero-digital-b2511.firebasestorage.app",
-      messagingSenderId: "209498054849",
-      appId: "1:209498054849:web:2ddd4ee146301590683440"
-    };
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyChEwjd5RKcPvYbz3P6tz0jp0v0J2DRgzo",
+    authDomain: "comandero-digital-b2511.firebaseapp.com",
+    databaseURL: "https://comandero-digital-b2511-default-rtdb.firebaseio.com",
+    projectId: "comandero-digital-b2511",
+    storageBucket: "comandero-digital-b2511.appspot.com",
+    messagingSenderId: "209498054849",
+    appId: "1:209498054849:web:2ddd4ee146301590683440"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const comandasRef = db.ref('comandas');
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const comandasRef = ref(db, 'comandas');
-
-    window.enviarComandaAFirebase = function(nuevaComanda) {
-      const nuevaComandaRef = push(comandasRef);
-      set(nuevaComandaRef, {
-        ...nuevaComanda,
-        fecha: new Date().toISOString(),
-        estado: "pendiente"
-      });
-    };
-
-    onValue(comandasRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data && typeof actualizarPantallaCocina === 'function') {
-        actualizarPantallaCocina(data);
-      }
+  window.enviarComandaAFirebase = function(nuevaComanda) {
+    comandasRef.push({
+      ...nuevaComanda,
+      fecha: new Date().toISOString(),
+      estado: "pendiente"
     });
-⁠</script>
+  };
+
+  comandasRef.on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data && typeof actualizarPantallaCocina === 'function') {
+      actualizarPantallaCocina(data);
+    }
+  });
+</script>
+
 ⁠</body>⁠
     ⁠</html>⁠
