@@ -232,14 +232,24 @@
         }
 
         function enviarComandaNube() {
-            let m = estadoMesas[mesaSeleccionadaActual]; if(!m.cola || m.cola.length === 0) return alert("Nada nuevo.");
-            let despachoCocina = [...m.cola]; m.enviado = [...(m.enviado || []), ...m.cola]; m.cola = [];
-            if(modoCloud) {
-                db.ref('mesas_grid/' + mesaSeleccionadaActual).set(m);
-                db.ref('cocina_grid').push({ mesa: mesaSeleccionadaActual, productos: despachoCocina, time: Date.now() });
-            } else { cocinaTickets.push([Date.now(), { mesa: mesaSeleccionadaActual, productos: despachoCocina }]); renderizarPantallaCuenta(); renderizerCocinaLocal(); }
-            alert("🚀 ENVIADO A COCINA");
-        }
+  let m = estadoMesas[mesaSeleccionadaActual];
+  
+  if (m && m.cola && m.cola.length > 0) {
+    // Usamos la función que definimos en el bloque de Firebase al final
+    window.enviarComandaAFirebase({
+      mesa: mesaSeleccionadaActual,
+      pedido: [...m.cola]
+    });
+    
+    // Actualizamos localmente para mostrar que ya se envió
+    m.enviado = [...(m.enviado || []), ...m.cola];
+    m.cola = [];
+    renderizarPantallaCuenta();
+    alert("🚀 ENVIADO A COCINA");
+  } else {
+    alert("No hay artículos para enviar");
+  }
+}
 
         function renderizarCocina() {
             const cont = document.getElementById('contenedor-tickets-cocina'); if(cocinaTickets.length === 0) { cont.innerHTML = "<p style='color:#94a3b8;'>Sin comandas pendientes.</p>"; return; }
