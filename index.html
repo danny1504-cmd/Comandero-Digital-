@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Comandero Digital PRO Ultimate</title>
+    <!-- Firebase Realtime Cloud -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; user-select: none; }
+        body { margin: 0; padding: 0; background: #121824; color: #e2e8f0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* BARRA SUPERIOR: PESTAÑAS TRIPLES (Se ocultan en modo rol) */
+        .header-tabs { display: flex; background: #1e293b; border-bottom: 2px solid #0f172a; }
+        .tab { flex: 1; text-align: center; padding: 12px; font-weight: bold; font-size: 10pt; color: #94a3b8; border-bottom: 3px solid transparent; cursor: pointer; text-transform: uppercase; }
+        .tab.active { color: #38bdf8; border-bottom-color: #38bdf8; background: #1e293b; }
+
+        /* MONITOR DE PANTALLA DE CUENTA INTERACTIVA */
+        .pantalla-cuenta { background: #ffffff; color: #000000; padding: 12px; min-height: 100px; max-height: 140px; overflow-y: auto; font-size: 11pt; border-bottom: 4px solid #38bdf8; }
+        .linea-pedido { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 2px; cursor: pointer; padding: 4px; border-radius: 4px; }
+        .linea-pedido:active { background: #fee2e2; }
+
+        /* SELECTORES DE MESAS */
+        .zona-mesas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px; background: #0f172a; }
+        .btn-mesa { background: #334155; color: white; border: none; padding: 10px; font-weight: bold; border-radius: 4px; font-size: 11pt; }
+        .btn-mesa.activa { background: #38bdf8; color: #0f172a; box-shadow: 0 0 10px #38bdf8; }
+
+        /* CONTENEDOR PRINCIPAL */
+        .contenido-dinamico { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; }
+        
+        /* MALLA DE BOTONES */
+        .grid-comandero { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .btn-grid { background: #0284c7; color: white; border: none; padding: 22px 10px; font-weight: bold; border-radius: 6px; font-size: 11pt; text-transform: uppercase; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-shadow: 1px 1px 2px rgba(0,0,0,0.6); }
+        .btn-grid:active { background: #0369a1; transform: scale(0.98); }
+        .btn-producto { background: #1e293b; border: 1px solid #334155; color: #f1f5f9; }
+        .btn-producto:active { background: #334155; }
+        
+        /* BOTONES ESPECIALES DE CONFIGURACIÓN INTERNA */
+        .btn-volver { background: #334155; grid-column: span 2; padding: 12px; font-size: 10pt; }
+        .btn-crear-interno { background: #10b981; grid-column: span 2; padding: 14px; font-size: 11pt; border: 2px dashed #ffffff; }
+        .btn-editar-interno { background: #b45309; grid-column: span 2; padding: 10px; font-size: 10pt; border-radius: 6px; margin-bottom: 8px; text-transform: uppercase; font-weight: bold; border: none; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .btn-editar-interno:active { background: #78350f; }
+
+        /* BARRA DE HERRAMIENTAS INFERIOR */
+        .toolbar-inferior { display: flex; background: #0f172a; border-top: 1px solid #334155; padding: 6px; justify-content: space-around; align-items: center; gap: 4px; }
+        .btn-tool { background: #1e293b; color: #38bdf8; border: 1px solid #334155; border-radius: 4px; padding: 10px 8px; font-size: 11pt; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex: 1; text-align: center; min-height: 44px; }
+        .btn-tool:active { background: #334155; }
+        .btn-tool.enviar { color: #10b981; font-size: 11pt; background: #121824; font-weight: bold; flex: 1.3; border: 1px solid #10b981; }
+        .btn-tool.eliminar-comanda { color: #ef4444; max-width: 44px; font-size: 13pt; }
+
+        /* PANTALLAS SECUNDARIAS */
+        .pantalla-secundaria { display: none; flex: 1; overflow-y: auto; padding: 12px; }
+        .tarjeta-industrial { background: #1e293b; border-left: 5px solid #10b981; padding: 12px; border-radius: 6px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .tarjeta-ticket { border-left-color: #38bdf8; background: #1e293b; }
+        
+        /* REJILLA PARA MÚLTIPLES TICKETS EN COCINA */
+        .grid-cocina-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    </style>
+</head>
+<body>
+
+    <!-- PESTAÑAS SUPERIORES -->
+    <div class="header-tabs" id="barra-pestanas">
+        <div class="tab active" id="tab-caja" onclick="switchModo('camarero')">📱 CAJA</div>
+        <div class="tab" id="tab-cocina" onclick="switchModo('cocina')">👨‍🍳 COCINA</div>
+        <div class="tab" id="tab-tickets" onclick="switchModo('tickets')">📋 HISTORIAL DB</div>
+    </div>
+
+    <!-- VISTA 1: CAMARERO / TERMINAL -->
+    <div id="vista-camarero" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+        <!-- PANTALLA DIGITAL INTERACTIVA -->
+        <div class="pantalla-cuenta" id="monitor-pantalla">
+            <div style="font-weight: bold; color: #64748b; font-size: 9pt; margin-bottom: 4px; display:flex; justify-content:space-between;">
+                <span>MESA ACTIVA: <span id="lbl-mesa" style="color:#0284c7;">Mesa 1</span></span>
+                <span style="color: #ef4444; font-size:8.5pt; font-style:italic;">💡 Toca un artículo para quitarlo</span>
+            </div>
+            <div id="lineas-articulos"><p style="color: #94a3b8; margin: 0; font-style: italic;">Sin artículos.</p></div>
+        </div>
+
+        <!-- SELECTORES DE MESA RÁPIDOS -->
+        <div class="zona-mesas">
+            <button class="btn-mesa activa" id="m1" onclick="seleccionarMesa('Mesa 1', 'm1')">1</button>
+            <button class="btn-mesa" id="m2" onclick="seleccionarMesa('Mesa 2', 'm2')">2</button>
+            <button class="btn-mesa" id="m3" onclick="seleccionarMesa('Mesa 3', 'm3')">3</button>
+            <button class="btn-mesa" id="m4" onclick="seleccionarMesa('Mesa 4', 'm4')">4</button>
+        </div>
+
+        <!-- REJILLA TÁCTIL -->
+        <div class="contenido-dinamico">
+            <div class="grid-comandero" id="modulo-rejilla"></div>
+        </div>
+
+        <!-- BARRA INFERIOR MODULAR -->
+        <div class="toolbar-inferior">
+            <button class="btn-tool eliminar-comanda" onclick="eliminarComandaCompleta()">🗑️</button>
+            <button class="btn-tool" onclick="crearNuevaCategoriaGlobal()">📂 +Bloque</button>
+            <button class="btn-tool" onclick="eliminarCategoriaGlobal()" style="color:#ef4444;">💥 -Bloque</button>
+            <button class="btn-tool" onclick="generarTicketCobro()">🧾 Cobrar</button>
+            <button class="btn-tool enviar" onclick="enviarComandaNube()">🚀 ENVIAR</button>
+        </div>
+    </div>
+
+    <!-- VISTA 2: MONITOR COCINA -->
+    <div id="vista-cocina" class="pantalla-secundaria">
+        <h2 style="margin-top: 0; color: #10b981; display: flex; justify-content: space-between; align-items: center;">
+            <span>👨‍🍳 Cocina (Pedidos Pendientes)</span>
+            <span style="font-size: 10pt; color: #94a3b8; font-weight: normal;">Modo Pantalla Completa</span>
+        </h2>
+        <div id="contenedor-tickets-cocina" class="grid-cocina-layout"></div>
+    </div>
+
+    <!-- VISTA 3: BASE DE DATOS DE TICKETS COBRADOS -->
+    <div id="vista-tickets" class="pantalla-secundaria">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="margin: 0; color: #38bdf8;">Historial de Cierres (DB)</h2>
+            <button onclick="borrarTodaLaBaseTickets()" style="background:#ef4444; width:auto; margin:0; padding:6px 12px; font-size:10pt;">⚠️ LIMPIAR DB</button>
+        </div>
+        <div id="contenedor-base-tickets"></div>
+    </div>
+
+    <script>
+        // --- CONEXIÓN INSTANTÁNEA FIREBASE ---
+        const firebaseConfig = {
+            databaseURL: "AQUÍ_VA_EL_LINK_DE_TU_BASE_DE_DATOS_FIREBASE"
+        };
+
+        let db; let modoCloud = false;
+        if(firebaseConfig.databaseURL !== "AQUÍ_VA_EL_LINK_DE_TU_BASE_DE_DATOS_FIREBASE") {
+            firebase.initializeApp(firebaseConfig); db = firebase.database(); modoCloud = true;
+        }
+
+        let menuEstructura = {
+            "BEBIDAS": [{n:"☕ Café Capuccino", p:3.50}, {n:"🥤 Refresco Cola", p:2.50}, {n:"🍺 Cerveza", p:3.00}],
+            "CAFETERÍA Y POSTRES": [{n:"🥐 Croissant", p:2.80}, {n:"🍰 Tarta Zanahoria", p:4.50}],
+            "ENTRANTES": [{n:"🍟 Patatas Fritas", p:5.00}, {n:"🥗 Ensalada César", p:7.50}]
+        };
+
+        let estadoMesas = {"Mesa 1": {enviado:[], cola:[]}, "Mesa 2": {enviado:[], cola:[]}, "Mesa 3": {enviado:[], cola:[]}, "Mesa 4": {enviado:[], cola:[]}};
+        let cocinaTickets = [];
+        let dbTicketsCobrados = [];
+        let mesaSeleccionadaActual = "Mesa 1";
+        let categoriaAbiertaActual = null;
+
+        if(modoCloud) {
+            db.ref('menu_grid').on('value', snap => { if(snap.val()){ menuEstructura = snap.val(); renderizarMallaPrincipal(); }});
+            db.ref('mesas_grid').on('value', snap => { if(snap.val()){ estadoMesas = snap.val(); renderizarPantallaCuenta(); }});
+            db.ref('cocina_grid').on('value', snap => { if(snap.val()){ cocinaTickets = snap.val() ? Object.entries(snap.val()) : []; renderizarCocina(); }});
+            db.ref('tickets_history').on('value', snap => { if(snap.val()){ dbTicketsCobrados = Object.entries(snap.val()); renderizarBaseTickets(); } else { dbTicketsCobrados = []; renderizarBaseTickets(); }});
+        }
+
+        function renderizarMallaPrincipal() {
+            const grid = document.getElementById('modulo-rejilla'); let html = "";
+            if (categoriaAbiertaActual === null) {
+                for(let cat in menuEstructura) { html += `<button class="btn-grid" onclick="abrirCategoria('${cat}')">${cat}</button>`; }
+            } else {
+                html += `<button class="btn-grid btn-volver" onclick="volverACategorias()">⬅️ VOLVER AL MENÚ PRINCIPAL</button>`;
+                html += `<button class="btn-grid btn-crear-interno" onclick="añadirProductoAquiDinamico()">➕ AÑADIR PRODUCTO A ${categoriaAbiertaActual}</button>`;
+                html += `<button class="btn-editar-interno" onclick="gestionarProductosInternos()">🛠️ EDITAR / BORRAR PRODUCTOS</button>`;
+                if(menuEstructura[categoriaAbiertaActual]) {
+                    menuEstructura[categoriaAbiertaActual].forEach(prod => {
+                        html += `<button class="btn-grid btn-producto" onclick="añadirArticuloCola('${prod.n}', ${prod.p})">${prod.n}<br><span style='color:#38bdf8; font-size:10pt;'>$${prod.p.toFixed(2)}</span></button>`;
+                    });
+                }
+            }
+            grid.innerHTML = html;
+        }
+
+        function abrirCategoria(cat) { categoriaAbiertaActual = cat; renderizarMallaPrincipal(); }
+        function volverACategorias() { categoriaAbiertaActual = null; renderizarMallaPrincipal(); }
+        function añadirProductoAquiDinamico() {
+            let nom = prompt(`Nombre del artículo para [${categoriaAbiertaActual}]:`); if(!nom) return;
+            let pre = parseFloat(prompt(`Precio para "${nom}":`)); if(isNaN(pre)) return alert("No válido.");
+            menuEstructura[categoriaAbiertaActual].push({n: nom, p: pre}); guardarMenuEstructura();
+        }
+
+        function gestionarProductosInternos() {
+            let productos = menuEstructura[categoriaAbiertaActual]; if(!productos || productos.length === 0) return alert("Vacio.");
+            let listaString = productos.map((p, index) => `${index + 1}. ${p.n} ($${p.p.toFixed(2)})`).join("\n");
+            let seleccion = parseInt(prompt(`Elige el NÚMERO:\n\n${listaString}`)) - 1;
+            if(isNaN(seleccion) || seleccion < 0 || seleccion >= productos.length) return;
+            let prodSeleccionado = productos[seleccion];
+            let accion = prompt(`Escribe "BORRAR" o "EDITAR" para "${prodSeleccionado.n}":`).toUpperCase();
+            if (accion === "BORRAR") { productos.splice(seleccion, 1); guardarMenuEstructura(); }
+            else if (accion === "EDITAR") {
+                let nN = prompt("Nombre:", prodSeleccionado.n); let nP = parseFloat(prompt("Precio:", prodSeleccionado.p));
+                if(nN && !isNaN(nP)) { productos[seleccion] = { n: nN, p: nP }; guardarMenuEstructura(); }
+            }
+        }
+
+        function crearNuevaCategoriaGlobal() {
+            let nuevaCat = prompt("Nombre del nuevo apartado:"); if(!nuevaCat) return;
+            nuevaCat = nuevaCat.toUpperCase(); menuEstructura[nuevaCat] = []; guardarMenuEstructura();
+        }
+
+        function eliminarCategoriaGlobal() {
+            let categorias = Object.keys(menuEstructura); let lista = categorias.map((c, i) => `${i + 1}. ${c}`).join("\n");
+            let seleccion = parseInt(prompt(`NÚMERO del bloque a ELIMINAR:\n\n${lista}`)) - 1;
+            if(isNaN(seleccion) || seleccion < 0 || seleccion >= categorias.length) return;
+            delete menuEstructura[categorias[seleccion]]; categoriaAbiertaActual = null; guardarMenuEstructura();
+        }
+
+        function guardarMenuEstructura() {
+            if(modoCloud) db.ref('menu_grid').set(menuEstructura);
+            else { localStorage.setItem('menu_grid_l', JSON.stringify(menuEstructura)); renderizarMallaPrincipal(); }
+        }
+
+        function seleccionarMesa(nombre, btnId) {
+            mesaSeleccionadaActual = nombre; document.querySelectorAll('.btn-mesa').forEach(b => b.classList.remove('activa'));
+            document.getElementById(btnId).classList.add('activa'); document.getElementById('lbl-mesa').innerText = nombre; renderizarPantallaCuenta();
+        }
+
+        function añadirArticuloCola(nombre, precio) {
+            if(!estadoMesas[mesaSeleccionadaActual].cola) estadoMesas[mesaSeleccionadaActual].cola = [];
+            estadoMesas[mesaSeleccionadaActual].cola.push({n: nombre, p: precio}); actualizarMesasDB();
+        }
+
+        function solicitarEditarItem(tipo, index) {
+            let m = estadoMesas[mesaSeleccionadaActual];
+            if(confirm(`¿Quitar de la cuenta?`)) { if(tipo === 'cola') m.cola.splice(index, 1); else m.enviado.splice(index, 1); actualizarMesasDB(); }
+        }
+
+        function eliminarComandaCompleta() { if(confirm(`¿Limpiar mesa?`)) { estadoMesas[mesaSeleccionadaActual] = {enviado:[], cola:[]}; actualizarMesasDB(); } }
+
+        function renderizarPantallaCuenta() {
+            const contenedor = document.getElementById('lineas-articulos'); const m = estadoMesas[mesaSeleccionadaActual] || {enviado:[], cola:[]}; let html = ""; let total = 0;
+            if((!m.enviado || m.enviado.length===0) && (!m.cola || m.cola.length===0)) { contenedor.innerHTML = `<p style="color: #94a3b8; margin: 0; font-style: italic;">Sin artículos registrados.</p>`; return; }
+            if(m.enviado) m.enviado.forEach((i, idx) => { total += i.p; html += `<div class="linea-pedido" style="color: #475569;" onclick="solicitarEditarItem('enviado', ${idx})"><span>🔹 ${i.n}</span><b>$${i.p.toFixed(2)} ❌</b></div>`; });
+            if(m.cola) m.cola.forEach((i, idx) => { total += i.p; html += `<div class="linea-pedido" style="color: #b45309; font-weight: bold;" onclick="solicitarEditarItem('cola', ${idx})"><span>🔸 ${i.n} *</span><b>$${i.p.toFixed(2)} ❌</b></div>`; });
+            html += `<div style="text-align: right; font-weight: bold; font-size: 11pt; margin-top: 4px; color: #0284c7;">TOTAL: $${total.toFixed(2)}</div>`;
+            contenedor.innerHTML = html;
+        }
+
+        function enviarComandaNube() {
+            let m = estadoMesas[mesaSeleccionadaActual]; if(!m.cola || m.cola.length === 0) return alert("Nada nuevo.");
+            let despachoCocina = [...m.cola]; m.enviado = [...(m.enviado || []), ...m.cola]; m.cola = [];
+            if(modoCloud) {
+                db.ref('mesas_grid/' + mesaSeleccionadaActual).set(m);
+                db.ref('cocina_grid').push({ mesa: mesaSeleccionadaActual, productos: despachoCocina, time: Date.now() });
+            } else { cocinaTickets.push([Date.now(), { mesa: mesaSeleccionadaActual, productos: despachoCocina }]); renderizarPantallaCuenta(); renderizerCocinaLocal(); }
+            alert("🚀 ENVIADO A COCINA");
+        }
+
+        function renderizarCocina() {
+            const cont = document.getElementById('contenedor-tickets-cocina'); if(cocinaTickets.length === 0) { cont.innerHTML = "<p style='color:#94a3b8;'>Sin comandas pendientes.</p>"; return; }
+            cont.innerHTML = cocinaTickets.map(([key, ticket]) => `
+                <div class="tarjeta-industrial" style="min-width:260px;">
+                    <h3 style="margin:0 0 8px 0; color:#38bdf8; font-size:14pt;">🔥 ${ticket.mesa}</h3>
+                    <ul style="margin:0; padding-left:20px; font-size:13pt; margin-bottom:12px; color:#ffffff;">${ticket.productos.map(p => `<li>${p.n}</li>`).join('')}</ul>
+                    <button class="btn-mesa" style="background:#10b981; width:100%; padding:12px;" onclick="completarCocina('${key}')">✅ HECHO</button>
+                </div>
+            `).join('');
+        }
+
+        function completarCocina(key) { if(modoCloud) db.ref('cocina_grid/' + key).remove(); else { cocinaTickets = cocinaTickets.filter(t => t[0] !== parseInt(key)); renderizerCocinaLocal(); } }
+        function renderizerCocinaLocal() { renderizarCocina(); }
+
+        function generarTicketCobro() {
+            let m = estadoMesas[mesaSeleccionadaActual]; if(!m.enviado || m.enviado.length === 0) return alert("Vacía.");
+            let tot = m.enviado.reduce((s,i)=>s+i.p,0);
+            if(confirm(`--- COBRAR ---\nTotal: $${tot.toFixed(2)}`)) {
+                let nuevoTicket = { id: Date.now(), mesa: mesaSeleccionadaActual, articulos: m.enviado, total: tot, fecha: new Date().toLocaleTimeString() };
+                if(modoCloud) { db.ref('tickets_history').push(nuevoTicket); estadoMesas[mesaSeleccionadaActual] = {enviado:[], cola:[]}; db.ref('mesas_grid/' + mesaSeleccionadaActual).set(estadoMesas[mesaSeleccionadaActual]); }
+                else { dbTicketsCobrados.push([nuevoTicket.id, nuevoTicket]); estadoMesas[mesaSeleccionadaActual] = {enviado:[], cola:[]}; renderizarPantallaCuenta(); renderizarBaseTickets(); }
+            }
+        }
+
+        function renderizarBaseTickets() {
+            const cont = document.getElementById('contenedor-base-tickets'); if(dbTicketsCobrados.length === 0) { cont.innerHTML = "<p style='color:#94a3b8;'>Vacío.</p>"; return; }
+            cont.innerHTML = dbTicketsCobrados.map(([key, ticket]) => `
+                <div class="tarjeta-industrial tarjeta-ticket">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; color:#38bdf8;"><span>🧾 Ticket #${ticket.id.toString().slice(-4)}</span> <span style="color:#10b981;">$${ticket.total.toFixed(2)}</span></div>
+                    <button onclick="eliminarTicketUnicoDB('${key}')" style="background:#ef4444; padding:4px 8px; font-size:9pt; margin:4px 0 0 0; width:auto; float:right; border-radius:4px;">❌ BORRAR</button><div style="clear:both;"></div>
+                </div>
+            `).join('');
+        }
+
+        function eliminarTicketUnicoDB(key) { if(confirm("¿Eliminar?")) { if(modoCloud) db.ref('tickets_history/' + key).remove(); else { dbTicketsCobrados = dbTicketsCobrados.filter(t => t[0] != key); renderizarBaseTickets(); } } }
+        function borrarTodaLaBaseTickets() { if(confirm("¿Vaciar?")) { if(modoCloud) db.ref('tickets_history').remove(); else { dbTicketsCobrados = []; renderizarBaseTickets(); } } }
+        function actualizarMesasDB() { if(modoCloud) db.ref('mesas_grid/' + mesaSeleccionadaActual).set(estadoMesas[mesaSeleccionadaActual]); else { renderizarPantallaCuenta(); } }
+
+        function switchModo(modo) {
+            document.getElementById('vista-camarero').style.display = modo === 'camarero' ? 'flex' : 'none';
+            document.getElementById('vista-cocina').style.display = modo === 'cocina' ? 'block' : 'none';
+            document.getElementById('vista-tickets').style.display = modo === 'tickets' ? 'block' : 'none';
+            document.getElementById('tab-caja').classList.toggle('active', modo === 'camarero');
+            document.getElementById('tab-cocina').classList.toggle('active', modo === 'cocina');
+            document.getElementById('tab-tickets').classList.toggle('active', modo === 'tickets');
+            if(modo === 'cocina') renderizerCocinaLocal();
+            if(modo === 'tickets') renderizarBaseTickets();
+        }
+
+        // --- SISTEMA INTELLIGENT DE DETECCIÓN DE ROL POR LINK ---
+        function evaluarRolPorURL() {
+            const parametros = new URLSearchParams(window.location.search);
+            const rol = parametros.get('rol'); // Busca "?rol=" en el enlace
+
+            if (rol === 'camarero') {
+                document.getElementById('barra-pestanas').style.display = 'none'; // Oculta barra
+                switchModo('camarero');
+            } else if (rol === 'cocina') {
+                document.getElementById('barra-pestanas').style.display = 'none'; // Oculta barra
+                switchModo('cocina');
+            } else {
+                // Si abres el link normal (en la PC), se ve completo con las pestañas de administración.
+                switchModo('camarero');
+            }
+        }
+
+        if(!modoCloud && localStorage.getItem('menu_grid_l')) menuEstructura = JSON.parse(localStorage.getItem('menu_grid_l'));
+        renderizarMallaPrincipal(); renderizarPantallaCuenta();
+        evaluarRolPorURL(); // Ejecutar control al cargar
+    </script>
+</body>
+</html>
